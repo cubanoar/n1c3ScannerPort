@@ -21,3 +21,5 @@ Ejemplos de uso:
             
             -Escanea puertos por defecto [default 1-65536]:  
                         python port_scanner.py -t 127.0.0.1
+                        
+![n1c3Scanner](https://github.com/cubanoar/n1c3ScannerPort/assets/85795806/c1eef49b-75b0-4d4e-9b74-9dce1f7caad1)
