@@ -1,15 +1,19 @@
 # n1c3ScannerPort 
 
-##Simple TCP Scanner Port
+## TCP Scanner Port
 
 git clone https://github.com/cubanoar/n1c3ScannerPort.git
+
+cd n1c3ScannerPort
+
+pip install -r requirements.txt
 
 Ejemplos de uso:
 
             -Escaneo a los 51 puertos más usados:  
                         python port_scanner.py -t 127.0.0.1 -f
 
-            -Especificar los puertos separados por (,) [80,8080]:  
+            -Escanea los puertos separados por (,) [80,8080]:  
                         python port_scanner.py -t 127.0.0.1 -p 21,23,443
 
             -Escanea un rango de puertos:  

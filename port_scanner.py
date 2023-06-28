@@ -1,38 +1,38 @@
-from tqdm import tqdm
 import socket
 import argparse
-from colorama import init, Fore, Style
+from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm
+from colorama import Fore, Style
 from pyfiglet import Figlet
 
 
-# Descripcion
-description = f""" Ejemplos de uso:
-            [+] Escaneo a los 51 puertos más usados:
-                -t 127.0.0.1 -f
-            [+] Especificar los puertos separados por (,) [80,8080]:
-                -t 127.0.0.1 -p 21,23,443
-            [+] Escanea un rango de puertos [default 1-65536]:
-                -t 127.0.0.1 -ip 70 -ep 100
-            [+] Escanea puertos por defecto [default 1-65536]:
-                -t 127.0.0.1 """
+# Descripción
+description = """Ejemplos de uso:
+    [+] Escaneo a los 51 puertos más usados:
+        python port_scanner.py -t 127.0.0.1 -f
+    [+] Escanea los puertos separados por (,) [80,8080]:
+        python port_scanner.py -t 127.0.0.1 -p 21,23,443
+    [+] Escanea un rango de puertos:
+        python port_scanner.py -t 127.0.0.1 -ip 70 -ep 100
+    [+] Escanea todos los puertos [default 1-65536]:
+        python port_scanner.py -t 127.0.0.1"""
 
-
-parser = argparse.ArgumentParser(description='Escanner de puertos',
+# Inicialización de argumentos de línea de comandos
+parser = argparse.ArgumentParser(description='Escáner de puertos',
                                  epilog=description, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("-t", "--target", help="target", required=True)
+parser.add_argument("-t", "--target", help="IP objetivo", required=True)
 parser.add_argument("-f", "--fast", help="Escanea los 51 puertos más usados.",
                     action="store_true", default=False)
-parser.add_argument(
-    "-p", "--ports", help="Especificar los puertos separados por (,) [80,8080].")
+parser.add_argument("-p", "--ports", help="Especificar los puertos separados por (,) [80,8080].")
 parser.add_argument("-ip", "--initial_port",
-                    help="Especificar puerto de inicio, default [1].", default=1)
+                    help="Especificar puerto inicial, por defecto [1].", default=1)
 parser.add_argument("-ep", "--end_port",
-                    help="Especificar puerto final, default [65536].", default=65536)
+                    help="Especificar puerto final, por defecto [65536].", default=65536)
 params = parser.parse_args()
 
 
-openPorts = []
-puertos_mas_usados = [
+open_ports = []
+common_ports = [
     80,     # HTTP
     443,    # HTTPS
     22,     # SSH
@@ -85,102 +85,55 @@ puertos_mas_usados = [
     55001,  # VNC alternativo
     55002,  # VNC alternativo
 ]
+def scan_port(port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    result = sock.connect_ex((params.target, port))
+    sock.close()
+    return port if result == 0 else None
 
 
-def show_open_ports():
-    print("\n")
-    for port in openPorts:
-        print(f'\t{Fore.GREEN}http://{params.target}:{port}\t-->\tPuerto: {Fore.RED}{Style.BRIGHT}{port}{Style.RESET_ALL} {Fore.GREEN}abierto')
-
-
-def scannerMostImportantsPorts():
-    try:
-        print(
-            f'\t\nEscanendo IP: {Fore.MAGENTA}{Style.BRIGHT}{params.target}{Fore.RESET}{Style.RESET_ALL} con los puertos:\n {puertos_mas_usados}\n')
-
-        for port in tqdm(puertos_mas_usados):
-            # crendo el objeto socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # estableciendo el timeout
-            s.settimeout(2)
-            # comprobar conexion
-            if s.connect_ex((params.target, port)) == 0:
-                openPorts.append(port)
-            # cerramos el socket
-            s.close()
-    except Exception as err:
-        print(
-            f"\t{Fore.RED}{Style.BRIGHT}[!]-Error {err=}\n\t[!]-{type(err)=}{Fore.RESET}{Style.RESET_ALL}")
-
-
-def scanner():
-    try:
-        print(
-            f'\t\nEscanendo IP: {Fore.MAGENTA}{Style.BRIGHT}{params.target}{Fore.RESET}{Style.RESET_ALL} del puerto {params.initial_port} al {params.end_port}\n')
-
-        for port in tqdm(range(int(params.initial_port), int(params.end_port))):
-            # crendo el objeto socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # estableciendo el timeout
-            s.settimeout(2)
-            # comprobar conexion
-            if s.connect_ex((params.target, port)) == 0:
-                openPorts.append(port)
-            # cerramos el socket
-            s.close()
-    except Exception as err:
-        print(
-            f"\t{Fore.RED}{Style.BRIGHT}[!]-Error {err=}\n\t[!]-{type(err)=}{Fore.RESET}{Style.RESET_ALL}")
-
-
-def selected_ports():
-    try:
-        print(
-            f'\t\nEscanendo IP: {Fore.MAGENTA}{Style.BRIGHT}{params.target}{Fore.RESET}{Style.RESET_ALL} con los puertos {params.ports}\n')
-        ports = params.ports.split(',')
-
-        for port in tqdm(ports):
-            # crendo el objeto socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # estableciendo el timeout
-            s.settimeout(2)
-            # comprobar conexion
-            if s.connect_ex((params.target, int(port))) == 0:
-                openPorts.append(port)
-            # cerramos el socket
-            s.close()
-    except Exception as err:
-        print(
-            f"\t{Fore.RED}{Style.BRIGHT}[!]-Error {err=}\n\t[!]-{type(err)=}{Fore.RESET}{Style.RESET_ALL}")
+def show_open_ports(open_ports):
+    if open_ports:
+        print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}Puertos abiertos:{Style.RESET_ALL}")
+        for port in open_ports:
+            print(f"{Fore.GREEN}[+]{Style.RESET_ALL} Puerto {Fore.RED}{port}{Style.RESET_ALL} abierto")
+        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
+    else:
+        print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
+        print(f"{Fore.RED}No se encontraron puertos abiertos.{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
 
 
 def main():
-    # colorama init
-    init()
+    ip_address = params.target
+    initial_port = int(params.initial_port)
+    end_port = int(params.end_port)
+    ports_to_scan = []
 
-    # banner
-    f = Figlet(font='slant')
-    print(f.renderText('n1c3Scanner'))
-
-    # name
-    name = 'by_n1c3bug'
-    print(f'{Fore.RED}{Style.BRIGHT}\n {name:_^40}\n\t{Fore.RESET}{Style.RESET_ALL}')
-
-    # choose function
     if params.fast:
-        scannerMostImportantsPorts()
+        ports_to_scan = common_ports
     elif params.ports:
-        selected_ports()
+        ports_to_scan = list(map(int, params.ports.split(",")))
     else:
-        scanner()
-    # show open  ports
-    show_open_ports()
+        ports_to_scan = list(range(initial_port, end_port + 1))
+
+    print(f"{Fore.CYAN}\nEscaneando puertos en la dirección IP: {ip_address}{Style.RESET_ALL}\n")
+
+    with ThreadPoolExecutor() as executor:
+        results = list(tqdm(executor.map(scan_port, ports_to_scan), total=len(ports_to_scan), ncols=80))
+
+    open_ports = [port for port in results if port is not None]
+    show_open_ports(open_ports)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
+        f = Figlet(font='slant')
+        print(f.renderText('n1c3Scanner'))
+        print(f'{Fore.RED}{"_"*25}by_n1c3bug{"_"*25}{Style.RESET_ALL}')
         main()
     except KeyboardInterrupt:
-        print(
-            f'{Fore.RED}{Style.BRIGHT}[!]{Fore.RESET}{Style.RESET_ALL} {Fore.MAGENTA}{Style.BRIGHT}Saliendo...{Fore.RESET}{Style.RESET_ALL}')
+        print(f"{Fore.RED}[!] Saliendo...{Style.RESET_ALL}" )
         exit()
